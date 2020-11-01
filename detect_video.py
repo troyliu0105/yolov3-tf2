@@ -6,9 +6,7 @@ from absl import app, flags, logging
 from absl.flags import FLAGS
 
 from yolov3_tf2.dataset import transform_images
-from yolov3_tf2.models import (
-    yolo_v3, yolo_v3_tiny
-)
+from yolov3_tf2.models import build_yolo_v3
 from yolov3_tf2.utils import draw_outputs
 
 flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
@@ -28,10 +26,7 @@ def main(_argv):
     for physical_device in physical_devices:
         tf.config.experimental.set_memory_growth(physical_device, True)
 
-    if FLAGS.tiny:
-        yolo = yolo_v3_tiny(classes=FLAGS.num_classes)
-    else:
-        yolo = yolo_v3(classes=FLAGS.num_classes)
+    yolo, _, _ = build_yolo_v3(FLAGS.backbone, training=False, classes=FLAGS.num_classes)
 
     yolo.load_weights(FLAGS.weights)
     logging.info('weights loaded')

@@ -10,16 +10,13 @@ from tensorflow.keras.callbacks import (
 )
 
 import yolov3_tf2.dataset as dataset
-from yolov3_tf2.models import (
-    yolo_v3, yolo_v3_tiny, yolo_loss,
-    yolo_anchors, yolo_anchor_masks,
-    yolo_tiny_anchors, yolo_tiny_anchor_masks
-)
+from yolov3_tf2.losses import yolo_loss
+from yolov3_tf2.models import build_yolo_v3
 from yolov3_tf2.utils import freeze_all
 
 flags.DEFINE_string('dataset', '', 'path to dataset')
 flags.DEFINE_string('val_dataset', '', 'path to validation dataset')
-flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
+# flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_string('weights', './checkpoints/yolov3.tf',
                     'path to weights file')
 flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
@@ -48,15 +45,8 @@ def main(_argv):
     for physical_device in physical_devices:
         tf.config.experimental.set_memory_growth(physical_device, True)
 
-    if FLAGS.tiny:
-        model = yolo_v3_tiny(FLAGS.size, training=True,
-                             classes=FLAGS.num_classes)
-        anchors = yolo_tiny_anchors
-        anchor_masks = yolo_tiny_anchor_masks
-    else:
-        model = yolo_v3(FLAGS.size, training=True, classes=FLAGS.num_classes)
-        anchors = yolo_anchors
-        anchor_masks = yolo_anchor_masks
+    model, anchors, anchor_masks = build_yolo_v3(FLAGS.backbone, size=FLAGS.size,
+                                                 training=True, classes=FLAGS.num_classes)
 
     if FLAGS.dataset:
         train_dataset = dataset.load_tfrecord_dataset(
@@ -92,12 +82,10 @@ def main(_argv):
         # with incompatible number of classes
 
         # reset top layers
-        if FLAGS.tiny:
-            model_pretrained = yolo_v3_tiny(
-                FLAGS.size, training=True, classes=FLAGS.weights_num_classes or FLAGS.num_classes)
-        else:
-            model_pretrained = yolo_v3(
-                FLAGS.size, training=True, classes=FLAGS.weights_num_classes or FLAGS.num_classes)
+
+        model_pretrained, _, _ = build_yolo_v3(FLAGS.backbone, size=FLAGS.size,
+                                               training=True,
+                                               classes=FLAGS.weights_num_classes or FLAGS.num_classes)
         model_pretrained.load_weights(FLAGS.weights)
 
         if FLAGS.transfer == 'darknet':

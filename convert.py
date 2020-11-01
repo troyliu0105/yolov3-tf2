@@ -3,7 +3,7 @@ import tensorflow as tf
 from absl import app, flags, logging
 from absl.flags import FLAGS
 
-from yolov3_tf2.models import yolo_v3, yolo_v3_tiny
+from yolov3_tf2.models import build_yolo_v3
 from yolov3_tf2.utils import load_darknet_weights
 
 flags.DEFINE_string('weights', './data/yolov3.weights', 'path to weights file')
@@ -17,10 +17,7 @@ def main(_argv):
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    if FLAGS.tiny:
-        yolo = yolo_v3_tiny(classes=FLAGS.num_classes)
-    else:
-        yolo = yolo_v3(classes=FLAGS.num_classes)
+    yolo, _, _ = build_yolo_v3(FLAGS.backbone, training=False, classes=FLAGS.num_classes)
     yolo.summary()
     logging.info('model created')
 
