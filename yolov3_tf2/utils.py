@@ -1,7 +1,7 @@
-from absl import logging
+import cv2
 import numpy as np
 import tensorflow as tf
-import cv2
+from absl import logging
 
 YOLOV3_LAYER_LIST = [
     'yolo_darknet',
@@ -93,9 +93,9 @@ def broadcast_iou(box_1, box_2):
                        tf.maximum(box_1[..., 1], box_2[..., 1]), 0)
     int_area = int_w * int_h
     box_1_area = (box_1[..., 2] - box_1[..., 0]) * \
-        (box_1[..., 3] - box_1[..., 1])
+                 (box_1[..., 3] - box_1[..., 1])
     box_2_area = (box_2[..., 2] - box_2[..., 0]) * \
-        (box_2[..., 3] - box_2[..., 1])
+                 (box_2[..., 3] - box_2[..., 1])
     return int_area / (box_1_area + box_2_area - int_area)
 
 
@@ -109,7 +109,7 @@ def draw_outputs(img, outputs, class_names):
         img = cv2.rectangle(img, x1y1, x2y2, (255, 0, 0), 2)
         img = cv2.putText(img, '{} {:.4f}'.format(
             class_names[int(classes[i])], objectness[i]),
-            x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
+                          x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
     return img
 
 

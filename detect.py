@@ -1,13 +1,15 @@
 import time
-from absl import app, flags, logging
-from absl.flags import FLAGS
+
 import cv2
 import numpy as np
 import tensorflow as tf
-from yolov3_tf2.models import (
-    YoloV3, YoloV3Tiny
-)
+from absl import app, flags, logging
+from absl.flags import FLAGS
+
 from yolov3_tf2.dataset import transform_images, load_tfrecord_dataset
+from yolov3_tf2.models import (
+    yolo_v3, yolo_v3_tiny
+)
 from yolov3_tf2.utils import draw_outputs
 
 flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
@@ -27,9 +29,9 @@ def main(_argv):
         tf.config.experimental.set_memory_growth(physical_device, True)
 
     if FLAGS.tiny:
-        yolo = YoloV3Tiny(classes=FLAGS.num_classes)
+        yolo = yolo_v3_tiny(classes=FLAGS.num_classes)
     else:
-        yolo = YoloV3(classes=FLAGS.num_classes)
+        yolo = yolo_v3(classes=FLAGS.num_classes)
 
     yolo.load_weights(FLAGS.weights).expect_partial()
     logging.info('weights loaded')

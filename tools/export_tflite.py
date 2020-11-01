@@ -1,17 +1,13 @@
 import time
+
+import tensorflow as tf
 from absl import app, flags, logging
 from absl.flags import FLAGS
-import cv2
-import numpy as np
-import tensorflow as tf
-from yolov3_tf2.models import (
-    YoloV3, YoloV3Tiny
-)
-from yolov3_tf2.dataset import transform_images
 
-from tensorflow.python.eager import def_function
-from tensorflow.python.framework import tensor_spec
-from tensorflow.python.util import nest
+from yolov3_tf2.dataset import transform_images
+from yolov3_tf2.models import (
+    yolo_v3, yolo_v3_tiny
+)
 
 flags.DEFINE_string('weights', './checkpoints/yolov3.tf',
                     'path to weights file')
@@ -23,12 +19,13 @@ flags.DEFINE_string('image', './data/girl.png', 'path to input image')
 flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
 flags.DEFINE_integer('size', 416, 'image size')
 
+
 # TODO: This is broken DOES NOT WORK !!
 def main(_argv):
     if FLAGS.tiny:
-        yolo = YoloV3Tiny(size=FLAGS.size, classes=FLAGS.num_classes)
+        yolo = yolo_v3_tiny(size=FLAGS.size, classes=FLAGS.num_classes)
     else:
-        yolo = YoloV3(size=FLAGS.size, classes=FLAGS.num_classes)
+        yolo = yolo_v3(size=FLAGS.size, classes=FLAGS.num_classes)
 
     yolo.load_weights(FLAGS.weights)
     logging.info('weights loaded')
@@ -60,6 +57,7 @@ def main(_argv):
     output_data = interpreter.get_tensor(output_details[0]['index'])
 
     print(output_data)
+
 
 if __name__ == '__main__':
     app.run(main)
