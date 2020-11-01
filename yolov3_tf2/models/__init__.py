@@ -1,11 +1,10 @@
-import numpy as np
 import tensorflow as tf
 from absl import flags
 from absl.flags import FLAGS
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Lambda
 
-from .backbones import darknet
+from .backbones import build_backbone, backbone_list
 
 __all__ = ['build_yolo_v3', 'yolo_nms', 'yolo_boxes']
 
@@ -14,34 +13,8 @@ flags.DEFINE_integer('yolo_max_boxes', 100,
 flags.DEFINE_float('yolo_iou_threshold', 0.5, 'iou threshold')
 flags.DEFINE_float('yolo_score_threshold', 0.5, 'score threshold')
 flags.DEFINE_enum('backbone', 'darknet',
-                  ['darknet', 'darknet-tiny'],
+                  backbone_list,
                   'choose backbone')
-
-yolo_anchors = np.array([(10, 13), (16, 30), (33, 23),
-                         (30, 61), (62, 45), (59, 119),
-                         (116, 90), (156, 198), (373, 326)],
-                        np.float32) / 416
-yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
-
-yolo_tiny_anchors = np.array([(10, 14), (23, 27), (37, 58),
-                              (81, 82), (135, 169), (344, 319)],
-                             np.float32) / 416
-yolo_tiny_anchor_masks = np.array([[3, 4, 5], [0, 1, 2]])
-
-__CONFIGS = {
-    'darknet': {
-        'fn': darknet.darknet,
-        'anchors': yolo_anchors,
-        'masks': yolo_anchor_masks,
-        'filters': [512, 256, 128]
-    },
-    'darknet-tiny': {
-        'fn': darknet.darknet_tiny,
-        'anchors': yolo_tiny_anchors,
-        'masks': yolo_tiny_anchor_masks,
-        'filters': [256, 128]
-    },
-}
 
 
 def yolo_boxes(pred, anchors, classes):
@@ -94,12 +67,8 @@ def yolo_nms(outputs, anchors, masks, classes):
     return boxes, scores, classes, valid_detections
 
 
-def yolo_v3(size=None, channels=3, classes=80, training=False,
-            backbone_name='darknet',
-            backbone_builder=darknet.darknet,
-            anchors=yolo_anchors,
-            masks=yolo_anchor_masks,
-            filters=__CONFIGS['darknet']['filters']):
+def yolo_v3(backbone_builder, anchors, masks, backbone_name, filters,
+            size=None, channels=3, classes=80, training=False):
     x = inputs = Input([size, size, channels], name='input')
 
     model, yolo_conv, yolo_output = backbone_builder(name=f'yolo_{backbone_name}')
@@ -132,15 +101,7 @@ def yolo_v3(size=None, channels=3, classes=80, training=False,
 
 
 def build_yolo_v3(backbone='darknet', size=None, channels=3, classes=80, training=False):
-    config = __CONFIGS[backbone]
-    fn = config['fn']
-    anchors = config['anchors']
-    masks = config['masks']
-    filters = config['filters']
-    model = yolo_v3(size=size, channels=channels, classes=classes, training=training,
-                    backbone_name=backbone,
-                    backbone_builder=fn,
-                    anchors=anchors,
-                    masks=masks,
-                    filters=filters)
+    fn, anchors, masks, filters = build_backbone(backbone)
+    model = yolo_v3(fn, anchors, masks, backbone, filters,
+                    size=size, channels=channels, classes=classes, training=training, )
     return model, anchors, masks
