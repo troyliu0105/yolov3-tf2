@@ -10,8 +10,8 @@ from ..utils import broadcast_iou
 __all__ = ['yolo_loss']
 
 
-def yolo_loss(anchors, classes=80, ignore_thresh=0.5):
-    @tf.function
+def yolo_loss_single(anchors, classes=80, ignore_thresh=0.5):
+    # @tf.function
     def _yolo_loss(y_true, y_pred):
         # 1. transform all pred outputs
         # y_pred: (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...cls))
@@ -65,3 +65,10 @@ def yolo_loss(anchors, classes=80, ignore_thresh=0.5):
         return xy_loss + wh_loss + obj_loss + class_loss
 
     return _yolo_loss
+
+
+def yolo_loss(anchors, masks, classes):
+    losses = [yolo_loss_single(anchors[mask], classes=classes)
+              for mask in masks]
+
+    return losses

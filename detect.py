@@ -13,7 +13,7 @@ from yolov3_tf2.utils import draw_outputs
 flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
 flags.DEFINE_string('weights', './checkpoints/yolov3.tf',
                     'path to weights file')
-flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
+# flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_integer('size', 416, 'resize images to')
 flags.DEFINE_string('image', './data/girl.png', 'path to input image')
 flags.DEFINE_string('tfrecord', None, 'tfrecord instead of image')
@@ -27,7 +27,7 @@ def main(_argv):
         tf.config.experimental.set_memory_growth(physical_device, True)
 
     yolo, _, _ = build_yolo_v3(FLAGS.backbone, training=False, classes=FLAGS.num_classes)
-
+    # out = yolo(tf.random.uniform((1, 416, 416, 3)))
     yolo.load_weights(FLAGS.weights).expect_partial()
     logging.info('weights loaded')
 

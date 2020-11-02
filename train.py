@@ -2,15 +2,11 @@ import numpy as np
 import tensorflow as tf
 from absl import app, flags, logging
 from absl.flags import FLAGS
-from tensorflow.keras.callbacks import (
-    ReduceLROnPlateau,
-    EarlyStopping,
-    ModelCheckpoint,
-    TensorBoard
-)
+from tensorflow.keras import callbacks
 
 import yolov3_tf2.dataset as dataset
 from yolov3_tf2.losses import yolo_loss
+from yolov3_tf2.metrics import MeanAP
 from yolov3_tf2.models import build_yolo_v3
 from yolov3_tf2.utils import freeze_all
 
@@ -41,6 +37,7 @@ flags.DEFINE_integer('weights_num_classes', None, 'specify num class for `weight
 
 
 def main(_argv):
+    # tf.config.experimental_run_functions_eagerly(True)
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     for physical_device in physical_devices:
         tf.config.experimental.set_memory_growth(physical_device, True)
@@ -112,22 +109,22 @@ def main(_argv):
             freeze_all(model)
 
     optimizer = tf.keras.optimizers.Adam(lr=FLAGS.learning_rate)
-    loss = [yolo_loss(anchors[mask], classes=FLAGS.num_classes)
-            for mask in anchor_masks]
+    loss = yolo_loss(anchors, anchor_masks, FLAGS.num_classes)
 
     if FLAGS.mode == 'eager_tf':
         # Eager mode is great for debugging
         # Non eager graph mode is recommended for real training
         avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
         avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+        mean_ap = MeanAP(classes=FLAGS.num_classes)
 
         for epoch in range(1, FLAGS.epochs + 1):
-            for batch, (images, labels) in enumerate(train_dataset):
+            for batch, (images, (y, labels)) in enumerate(train_dataset):
                 with tf.GradientTape() as tape:
                     outputs = model(images, training=True)
                     regularization_loss = tf.reduce_sum(model.losses)
                     pred_loss = []
-                    for output, label, loss_fn in zip(outputs, labels, loss):
+                    for label, output, loss_fn in zip(y, outputs, loss):
                         pred_loss.append(loss_fn(label, output))
                     total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
@@ -138,12 +135,13 @@ def main(_argv):
                     epoch, batch, total_loss.numpy(),
                     list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                 avg_loss.update_state(total_loss)
+                # break
 
-            for batch, (images, labels) in enumerate(val_dataset):
-                outputs = model(images)
+            for batch, (images, (y, labels)) in enumerate(val_dataset):
+                outputs, pred = model(images, training=False)
                 regularization_loss = tf.reduce_sum(model.losses)
                 pred_loss = []
-                for output, label, loss_fn in zip(outputs, labels, loss):
+                for output, label, loss_fn in zip(outputs, y, loss):
                     pred_loss.append(loss_fn(label, output))
                 total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
@@ -151,6 +149,8 @@ def main(_argv):
                     epoch, batch, total_loss.numpy(),
                     list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                 avg_val_loss.update_state(total_loss)
+                mean_ap.update_state(pred, labels)
+                # break
 
             logging.info("{}, train: {}, val: {}".format(
                 epoch,
@@ -165,18 +165,21 @@ def main(_argv):
         model.compile(optimizer=optimizer, loss=loss,
                       run_eagerly=(FLAGS.mode == 'eager_fit'))
 
-        callbacks = [
-            ReduceLROnPlateau(verbose=1),
-            EarlyStopping(patience=3, verbose=1),
-            ModelCheckpoint('checkpoints/yolov3_train_{epoch}.tf',
-                            verbose=1, save_weights_only=True),
-            TensorBoard(log_dir='logs')
+        fit_callbacks = [
+            callbacks.ReduceLROnPlateau(verbose=1),
+            callbacks.EarlyStopping(patience=3, verbose=1),
+            callbacks.ModelCheckpoint('checkpoints/yolov3_train_{epoch}.tf',
+                                      verbose=1,
+                                      save_weights_only=False),
+            callbacks.TensorBoard(log_dir='logs',
+                                  write_graph=True)
         ]
 
         history = model.fit(train_dataset,
                             epochs=FLAGS.epochs,
-                            callbacks=callbacks,
+                            callbacks=fit_callbacks,
                             validation_data=val_dataset)
+        # model.evaluate(val_dataset, steps=4)
 
 
 if __name__ == '__main__':

@@ -44,7 +44,6 @@ def transform_targets_for_output(y_true, grid_size, anchor_idxs):
 
 def transform_targets(y_train, anchors, anchor_masks, size):
     tf.debugging.assert_all_finite(y_train, 'y_train should be all finite')
-    y_outs = []
     grid_size = size // 32
 
     # calculate anchor index for true boxes
@@ -64,15 +63,16 @@ def transform_targets(y_train, anchors, anchor_masks, size):
     # [B, 100, 1]
     anchor_idx = tf.expand_dims(anchor_idx, axis=-1)
 
+    y_outs = []
     # [B, 100, 6]
-    y_train = tf.concat([y_train, anchor_idx], axis=-1)
+    y_train_with_anchor_idx = tf.concat([y_train, anchor_idx], axis=-1)
 
     for anchor_idxs in anchor_masks:
         y_outs.append(transform_targets_for_output(
-            y_train, grid_size, anchor_idxs))
+            y_train_with_anchor_idx, grid_size, anchor_idxs))
         grid_size *= 2
 
-    return tuple(y_outs)
+    return tuple(y_outs), y_train
 
 
 def transform_images(x_train, size):
